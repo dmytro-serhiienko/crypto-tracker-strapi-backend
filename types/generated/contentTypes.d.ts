@@ -440,6 +440,40 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiCoinCoin extends Struct.CollectionTypeSchema {
+  collectionName: 'coins';
+  info: {
+    displayName: 'Coin';
+    pluralName: 'coins';
+    singularName: 'coin';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    category: Schema.Attribute.Enumeration<
+      ['DeFi', 'Layer1', 'Meme', 'Stablecoin']
+    >;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    currentPrice: Schema.Attribute.Decimal;
+    description: Schema.Attribute.RichText;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::coin.coin'> &
+      Schema.Attribute.Private;
+    logo: Schema.Attribute.Media<'images'>;
+    name: Schema.Attribute.String;
+    priceChange24h: Schema.Attribute.Decimal;
+    publishedAt: Schema.Attribute.DateTime;
+    sparkline: Schema.Attribute.JSON;
+    symbol: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -951,6 +985,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
+      'api::coin.coin': ApiCoinCoin;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;
