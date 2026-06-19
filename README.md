@@ -21,16 +21,16 @@ Collection type: `Coin`
 
 ### Fields
 
-| Field | Type | Description |
-|---------|---------|---------|
-| `name` | Text | Coin name (e.g. `Bitcoin`) |
-| `symbol` | Text | Coin symbol (e.g. `BTC`) |
-| `currentPrice` | Decimal | Current price in USD |
-| `priceChange24h` | Decimal | 24h price change in percent |
-| `logo` | Media | Coin logo |
-| `description` | Rich Text | Coin description |
-| `sparkline` | JSON | Mocked 7-day price data |
-| `category` | Enumeration | `DeFi`, `Layer1`, `Meme`, `Stablecoin` |
+| Field            | Type        | Description                            |
+| ---------------- | ----------- | -------------------------------------- |
+| `name`           | Text        | Coin name (e.g. `Bitcoin`)             |
+| `symbol`         | Text        | Coin symbol (e.g. `BTC`)               |
+| `currentPrice`   | Decimal     | Current price in USD                   |
+| `priceChange24h` | Decimal     | 24h price change in percent            |
+| `logo`           | Media       | Coin logo                              |
+| `description`    | Rich Text   | Coin description                       |
+| `sparkline`      | JSON        | Mocked 7-day price data                |
+| `category`       | Enumeration | `DeFi`, `Layer1`, `Meme`, `Stablecoin` |
 
 ---
 

@@ -13,8 +13,8 @@
     "strapi": "strapi",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,mdx}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,mdx}\""
   },
   "dependencies": {
     "@strapi/plugin-cloud": "5.48.1",

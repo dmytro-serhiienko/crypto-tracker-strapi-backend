@@ -143,6 +143,7 @@ const coins = [
   },
 ];
 
+//! Создает график цены за 7 дней на основе стартовой цены монеты
 function generateSparkline(basePrice: number) {
   const points: number[] = [];
   let price = basePrice;
@@ -157,6 +158,7 @@ function generateSparkline(basePrice: number) {
 export default {
   register() {},
 
+  //! Запускается при старте Strapi и заполняет базу монетами, если она пустая.
   async bootstrap({ strapi }: { strapi: Core.Strapi }) {
     const count = await strapi.documents('api::coin.coin').count({});
 
