@@ -1,61 +1,219 @@
-# 🚀 Getting started with Strapi
+# Crypto Tracker Backend
 
-Strapi comes with a full featured [Command Line Interface](https://docs.strapi.io/dev-docs/cli) (CLI) which lets you scaffold and manage your project in seconds.
+Strapi backend for the Crypto Tracker test task.
 
-### `develop`
-
-Start your Strapi application with autoReload enabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-develop)
-
-```
-npm run develop
-# or
-yarn develop
-```
-
-### `start`
-
-Start your Strapi application with autoReload disabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-start)
-
-```
-npm run start
-# or
-yarn start
-```
-
-### `build`
-
-Build your admin panel. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-build)
-
-```
-npm run build
-# or
-yarn build
-```
-
-## ⚙️ Deployment
-
-Strapi gives you many possible deployment options for your project including [Strapi Cloud](https://cloud.strapi.io). Browse the [deployment section of the documentation](https://docs.strapi.io/dev-docs/deployment) to find the best solution for your use case.
-
-```
-yarn strapi deploy
-```
-
-## 📚 Learn more
-
-- [Resource center](https://strapi.io/resource-center) - Strapi resource center.
-- [Strapi documentation](https://docs.strapi.io) - Official Strapi documentation.
-- [Strapi tutorials](https://strapi.io/tutorials) - List of tutorials made by the core team and the community.
-- [Strapi blog](https://strapi.io/blog) - Official Strapi blog containing articles made by the Strapi team and the community.
-- [Changelog](https://strapi.io/changelog) - Find out about the Strapi product updates, new features and general improvements.
-
-Feel free to check out the [Strapi GitHub repository](https://github.com/strapi/strapi). Your feedback and contributions are welcome!
-
-## ✨ Community
-
-- [Discord](https://discord.strapi.io) - Come chat with the Strapi community including the core team.
-- [Forum](https://forum.strapi.io/) - Place to discuss, ask questions and find answers, show your Strapi project and get feedback or just talk with other Community members.
-- [Awesome Strapi](https://github.com/strapi/awesome-strapi) - A curated list of awesome things related to Strapi.
+The API stores a list of cryptocurrencies, exposes public REST endpoints, and provides a custom sync endpoint that updates prices from the DIA API.
 
 ---
 
-<sub>🤫 Psst! [Strapi is hiring](https://strapi.io/careers).</sub>
+## Tech Stack
+
+- Strapi 5
+- TypeScript
+- SQLite
+- DIA API
+
+---
+
+## Content Type: Coin
+
+Collection type: `Coin`
+
+### Fields
+
+| Field | Type | Description |
+|---------|---------|---------|
+| `name` | Text | Coin name (e.g. `Bitcoin`) |
+| `symbol` | Text | Coin symbol (e.g. `BTC`) |
+| `currentPrice` | Decimal | Current price in USD |
+| `priceChange24h` | Decimal | 24h price change in percent |
+| `logo` | Media | Coin logo |
+| `description` | Rich Text | Coin description |
+| `sparkline` | JSON | Mocked 7-day price data |
+| `category` | Enumeration | `DeFi`, `Layer1`, `Meme`, `Stablecoin` |
+
+---
+
+## Getting Started
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Start development server
+
+```bash
+npm run develop
+```
+
+### Strapi Admin Panel
+
+```text
+http://localhost:1337/admin
+```
+
+### API Base URL
+
+```text
+http://localhost:1337/api
+```
+
+---
+
+## Seed Data
+
+The project automatically seeds **20 cryptocurrencies** on startup if the database is empty.
+
+Seed logic is located in:
+
+```text
+src/index.ts
+```
+
+Coin logos are uploaded through the **Strapi Media Library** and attached to entries from the admin panel.
+
+---
+
+## Public Permissions
+
+The `Coin` collection has public access enabled for:
+
+- `find`
+- `findOne`
+
+This allows frontend applications to fetch coin data without authentication.
+
+---
+
+## API Endpoints
+
+### Get Coins
+
+```bash
+curl -g "http://localhost:1337/api/coins?pagination[pageSize]=30"
+```
+
+### Get Coins With Logos
+
+```bash
+curl -g "http://localhost:1337/api/coins?populate=logo&pagination[pageSize]=30"
+```
+
+### Get One Coin
+
+```bash
+curl "http://localhost:1337/api/coins/<documentId>?populate=logo"
+```
+
+Example:
+
+```bash
+curl "http://localhost:1337/api/coins/sr04mi14oywpssf1culguuo8?populate=logo"
+```
+
+### Filter By Category
+
+```bash
+curl -g "http://localhost:1337/api/coins?filters[category][$eq]=Layer1&populate=logo"
+```
+
+### Sort By Price
+
+```bash
+curl "http://localhost:1337/api/coins?sort=currentPrice:desc"
+```
+
+### Sync Prices
+
+```bash
+curl -X POST "http://localhost:1337/api/coins/sync"
+```
+
+The sync endpoint fetches fresh market data from DIA:
+
+```text
+https://api.diadata.org/v1/quotation/BTC
+```
+
+Updated fields:
+
+- `currentPrice`
+- `priceChange24h`
+
+Example response:
+
+```json
+{
+  "message": "Sync completed",
+  "updated": 19,
+  "skipped": 1,
+  "results": [
+    {
+      "symbol": "BTC",
+      "status": "updated",
+      "price": 63178.837744282064
+    },
+    {
+      "symbol": "BONK",
+      "status": "not_found_on_dia"
+    }
+  ]
+}
+```
+
+> `BONK` may be skipped because DIA does not always provide quotation data for this symbol. The endpoint handles this case gracefully.
+
+---
+
+## Notes
+
+When using `curl` with Strapi query parameters containing square brackets (`[]`), use the `-g` flag:
+
+```bash
+curl -g "http://localhost:1337/api/coins?filters[category][$eq]=Layer1"
+```
+
+Without `-g`, curl may return:
+
+```text
+curl: (3) bad range in URL
+```
+
+---
+
+## Project Structure
+
+```text
+src/
+├── api/
+│   └── coin/
+│       ├── content-types/
+│       │   └── coin/
+│       │       └── schema.json
+│       ├── controllers/
+│       │   └── coin.ts
+│       ├── routes/
+│       │   ├── coin.ts
+│       │   └── sync.ts
+│       └── services/
+│           └── coin.ts
+└── index.ts
+```
+
+---
+
+## Status
+
+### Completed Features
+
+- ✅ Coin content type
+- ✅ Seed data with 20 cryptocurrencies
+- ✅ Public `find` and `findOne` permissions
+- ✅ Coin logos via Strapi Media Library
+- ✅ Custom `/api/coins/sync` endpoint
+- ✅ Pagination support
+- ✅ Sorting support
+- ✅ Filtering support
+- ✅ DIA API integration

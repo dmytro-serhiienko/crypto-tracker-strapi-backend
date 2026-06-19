@@ -1,15 +1,54 @@
 import { factories } from '@strapi/strapi';
+import { promises as fs } from 'fs';
+import os from 'os';
+import path from 'path';
 
 type DiaQuotation = {
   Price?: number;
   PriceYesterday?: number;
+  LogoURL?: string;
 };
+
+async function uploadLogo(strapi: any, logoUrl: string, symbol: string) {
+  const imageResponse = await fetch(logoUrl);
+  if (!imageResponse.ok) {
+    return null;
+  }
+
+  const buffer = Buffer.from(await imageResponse.arrayBuffer());
+  const tmpPath = path.join(os.tmpdir(), `${symbol.toLowerCase()}-logo-${Date.now()}.png`);
+
+  try {
+    await fs.writeFile(tmpPath, buffer);
+
+    const uploadedFiles = await strapi.plugin('upload').service('upload').upload({
+      data: {},
+      files: {
+        path: tmpPath,
+        name: `${symbol.toLowerCase()}-logo.png`,
+        type: imageResponse.headers.get('content-type') || 'image/png',
+        size: buffer.length,
+      },
+    });
+
+    return uploadedFiles?.[0]?.id ?? null;
+  } finally {
+    await fs.rm(tmpPath, { force: true });
+  }
+}
 
 export default factories.createCoreController('api::coin.coin', ({ strapi }) => ({
   async sync(ctx) {
     const coins = await strapi.documents('api::coin.coin').findMany({
-      fields: ['documentId', 'symbol'],
-    });
+      fields: ['symbol'],
+      populate: {
+        logo: true,
+      },
+      status: 'published',
+      pagination: {
+        pageSize: 100,
+      },
+    } as any);
 
     const results: Array<{ symbol: string; status: string; price?: number }> = [];
 
@@ -22,9 +61,9 @@ export default factories.createCoreController('api::coin.coin', ({ strapi }) => 
           continue;
         }
 
-        const diaData: DiaQuotation = await response.json();
+        const diaData = (await response.json()) as DiaQuotation;
 
-        if (typeof diaData.Price !== 'number') {
+        if (!diaData.Price) {
           results.push({ symbol: coin.symbol, status: 'no_price_in_response' });
           continue;
         }
@@ -35,12 +74,28 @@ export default factories.createCoreController('api::coin.coin', ({ strapi }) => 
           ? ((newPrice - yesterdayPrice) / yesterdayPrice) * 100
           : 0;
 
+        const updateData: Record<string, unknown> = {
+          currentPrice: newPrice,
+          priceChange24h: Number(priceChange24h.toFixed(2)),
+        };
+
+        // Качаем и заливаем лого только если у монеты его ещё нет —
+        // не дублируем загрузку при каждом sync
+        const hasLogo = (coin as any).logo;
+        if (!hasLogo && diaData.LogoURL) {
+          try {
+            const logoId = await uploadLogo(strapi, diaData.LogoURL, coin.symbol);
+            if (logoId) {
+              updateData.logo = logoId;
+            }
+          } catch (err) {
+            strapi.log.warn(`Logo upload failed for ${coin.symbol}: ${err}`);
+          }
+        }
+
         await strapi.documents('api::coin.coin').update({
           documentId: coin.documentId,
-          data: {
-            currentPrice: newPrice,
-            priceChange24h: Number(priceChange24h.toFixed(2)),
-          } as any,
+          data: updateData as any,
           status: 'published',
         });
 
