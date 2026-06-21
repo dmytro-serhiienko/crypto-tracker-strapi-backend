@@ -3,25 +3,33 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 
+// типизация данных с DIA API
 type DiaQuotation = {
   Price?: number;
   PriceYesterday?: number;
   LogoURL?: string;
 };
 
-//! Скачивает логотип по ссылке, временно сохраняет файл и загружает его в Media библ.
+//! Функция загрузки логотипа
+// запрос в интернет (fetch) по ссылке logoUrl => скачаиваем картинку =>
+// если ссылка битая (!imageResponse.ok) => возвращаем null (ничего)
 async function uploadLogo(strapi: any, logoUrl: string, symbol: string) {
   const imageResponse = await fetch(logoUrl);
   if (!imageResponse.ok) {
     return null;
   }
 
+  // буфер => картинку в набор байт
+  // tmpPath — путь для временного файла в системе + цифры
   const buffer = Buffer.from(await imageResponse.arrayBuffer());
   const tmpPath = path.join(
     os.tmpdir(),
     `${symbol.toLowerCase()}-logo-${Date.now()}.png`
   );
 
+  // записываем картинку из буфера во временный файл на ЖД
+  // вызываем встроенной upload для загрузки в Strapi
+  // возвращаем id => удаляем fs.rm временный файл с диска
   try {
     await fs.writeFile(tmpPath, buffer);
 
@@ -47,7 +55,7 @@ async function uploadLogo(strapi: any, logoUrl: string, symbol: string) {
 export default factories.createCoreController(
   'api::coin.coin',
   ({ strapi }) => ({
-    //! Обновляет цены монет через DIA API и возвращает => что обновилось
+    //! Загружаем из базы данных список наших монет (пока что 100)
     async sync(ctx) {
       const coins = await strapi.documents('api::coin.coin').findMany({
         fields: ['symbol'],
@@ -60,22 +68,27 @@ export default factories.createCoreController(
         },
       } as any);
 
+      // пустой масив для записи результата
       const results: Array<{ symbol: string; status: string; price?: number }> =
         [];
 
+      // цикл обновления монет
       for (const coin of coins) {
         try {
           const response = await fetch(
             `https://api.diadata.org/v1/quotation/${coin.symbol}`
           );
 
+          // не нашел монеу идем дальше
           if (!response.ok) {
             results.push({ symbol: coin.symbol, status: 'not_found_on_dia' });
             continue;
           }
 
+          // читаем
           const diaData = (await response.json()) as DiaQuotation;
 
+          // нет цены идем дальше
           if (!diaData.Price) {
             results.push({
               symbol: coin.symbol,
@@ -84,6 +97,8 @@ export default factories.createCoreController(
             continue;
           }
 
+          // Смотрим вчерашнюю цену. Если есть, по математической формуле считаем процент изменения цены за сутки.
+          // Если вчерашней цены нет — ставим 0.
           const newPrice = diaData.Price;
           const yesterdayPrice = diaData.PriceYesterday;
           const priceChange24h = yesterdayPrice
@@ -95,8 +110,8 @@ export default factories.createCoreController(
             priceChange24h: Number(priceChange24h.toFixed(2)),
           };
 
-          //! Качаем и заливаем лого только если у монеты его ещё нет —
-          //!!! не дублируем загрузку при каждом sync
+          // Проверяем, есть ли уже у монеты логотип (hasLogo).
+          // Если картинка скачалась, мы добавляем её id к данным для обновления.
           const hasLogo = (coin as any).logo;
           if (!hasLogo && diaData.LogoURL) {
             try {
@@ -113,6 +128,7 @@ export default factories.createCoreController(
             }
           }
 
+          // обновляем монету в базе данных Strapi по её documentId
           await strapi.documents('api::coin.coin').update({
             documentId: coin.documentId,
             data: updateData as any,
@@ -124,12 +140,17 @@ export default factories.createCoreController(
             status: 'updated',
             price: newPrice,
           });
+          //! главный catch
         } catch (err) {
           strapi.log.error(`Sync failed for ${coin.symbol}: ${err}`);
           results.push({ symbol: coin.symbol, status: 'error' });
         }
       }
 
+      // Текст Sync completed.
+      // updated считаем количество элементов в журнале, у которых статус равен 'updated'.
+      // skipped считаем все остальные монеты, которые были пропущены из-за разных ошибок.
+      // results прикрепляем весь детальный журнал со статусом по каждой монете.
       ctx.body = {
         message: 'Sync completed',
         updated: results.filter((r) => r.status === 'updated').length,

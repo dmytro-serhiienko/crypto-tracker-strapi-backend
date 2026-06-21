@@ -1,5 +1,6 @@
 import type { Core } from '@strapi/strapi';
 
+//!ТЗ Seed: залить ~15 - 30 монет.
 const coins = [
   {
     name: 'Bitcoin',
@@ -158,15 +159,18 @@ function generateSparkline(basePrice: number) {
 export default {
   register() {},
 
-  //! Запускается при старте Strapi и заполняет базу монетами, если она пустая.
+  //! Запуск при старте Strapi и заполняет базу монетами, если она пустая. Idempotency -результат всегда один!
   async bootstrap({ strapi }: { strapi: Core.Strapi }) {
     const count = await strapi.documents('api::coin.coin').count({});
 
     if (count > 0) {
-      strapi.log.info(`Coins already seeded (${count} found), skipping.`);
+      strapi.log.info(
+        `Монеты есть в количестве (${count} найдено), return - пропуск.`
+      );
       return;
     }
 
+    // если 0 запускаем цикл по массиву coins и создаем записи в базе
     for (const coin of coins) {
       await strapi.documents('api::coin.coin').create({
         data: {

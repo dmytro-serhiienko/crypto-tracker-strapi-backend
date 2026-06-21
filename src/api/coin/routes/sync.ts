@@ -1,7 +1,8 @@
+//! Кастомный endpoint /api/coins/sync — подтягивает свежие цены из внешнего API и обновляет записи
+
 export default {
   routes: [
     {
-      //! Создает публичный endpoint POST /api/coins/sync => обновления цен
       method: 'POST',
       path: '/coins/sync',
       handler: 'coin.sync',
